@@ -1,0 +1,278 @@
+Here is the complete project, ready to run.
+package.json
+JSON
+{
+  "name": "circle-accel",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "~5.6.0",
+    "vite": "^6.0.0"
+  }
+}
+tsconfig.json
+JSON
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "strict": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"]
+}
+index.html
+HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Accelerating Circles</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <div id="ui">Press <kbd>Space</kbd> to pause</div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
+src/style.css
+css
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#ui {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  font-size: 0.875rem;
+  opacity: 0.6;
+  pointer-events: none;
+  user-select: none;
+}
+
+kbd {
+  background: rgba(255, 255, 255, 0.12);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+src/main.ts
+TypeScript
+const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+const ctx = canvas.getContext('2d')!;
+
+let width = window.innerWidth;
+let height = window.innerHeight;
+canvas.width = width;
+canvas.height = height;
+
+window.addEventListener('resize', () => {
+  width = window.innerWidth;
+  height = window.innerHeight;
+  canvas.width = width;
+  canvas.height = height;
+});
+
+interface Vec2 {
+  x: number;
+  y: number;
+}
+
+const ACCEL = 450; // px/s²
+const MAX_CIRCLES = 150;
+
+function dist(a: Vec2, b: Vec2): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function mag(v: Vec2): number {
+  return Math.sqrt(v.x * v.x + v.y * v.y);
+}
+
+function normalize(v: Vec2): Vec2 {
+  const m = mag(v);
+  if (m === 0) return { x: 0, y: 0 };
+  return { x: v.x / m, y: v.y / m };
+}
+
+function sub(a: Vec2, b: Vec2): Vec2 {
+  return { x: a.x - b.x, y: a.y - b.y };
+}
+
+function randomPoint(from: Vec2, minDist: number, maxDist: number): Vec2 {
+  for (let i = 0; i < 20; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const d = minDist + Math.random() * (maxDist - minDist);
+    const p: Vec2 = {
+      x: from.x + Math.cos(angle) * d,
+      y: from.y + Math.sin(angle) * d,
+    };
+    const margin = 50;
+    if (p.x > margin && p.x < width - margin && p.y > margin && p.y < height - margin) {
+      return p;
+    }
+  }
+  const angle = Math.random() * Math.PI * 2;
+  const d = minDist + Math.random() * (maxDist - minDist);
+  return {
+    x: Math.max(50, Math.min(width - 50, from.x + Math.cos(angle) * d)),
+    y: Math.max(50, Math.min(height - 50, from.y + Math.sin(angle) * d)),
+  };
+}
+
+class Circle {
+  origin: Vec2;
+  pos: Vec2;
+  target: Vec2;
+  vel: Vec2;
+  hue: number;
+
+  constructor(origin: Vec2, target: Vec2) {
+    this.origin = { ...origin };
+    this.pos = { ...origin };
+    this.target = { ...target };
+    this.vel = { x: 0, y: 0 };
+    this.hue = Math.random() * 360;
+  }
+
+  setSegment(origin: Vec2, target: Vec2) {
+    this.origin = { ...origin };
+    this.pos = { ...origin };
+    this.target = { ...target };
+    this.vel = { x: 0, y: 0 };
+  }
+
+  update(dt: number): boolean {
+    const toTarget = sub(this.target, this.pos);
+    const d = mag(toTarget);
+    if (d < 0.5) {
+      this.pos = { ...this.target };
+      return true;
+    }
+
+    const dir = normalize(toTarget);
+    this.vel.x += dir.x * ACCEL * dt;
+    this.vel.y += dir.y * ACCEL * dt;
+
+    const speed = mag(this.vel);
+    if (speed * dt >= d) {
+      this.pos = { ...this.target };
+      return true;
+    }
+
+    this.pos.x += this.vel.x * dt;
+    this.pos.y += this.vel.y * dt;
+    return false;
+  }
+}
+
+const circles: Circle[] = [];
+let paused = false;
+
+function init() {
+  const center: Vec2 = { x: width / 2, y: height / 2 };
+  const firstTarget = randomPoint(center, 500, 900);
+  circles.push(new Circle(center, firstTarget));
+}
+
+function spawnChild(origin: Vec2) {
+  const target = randomPoint(origin, 500, 900);
+  circles.push(new Circle(origin, target));
+  if (circles.length > MAX_CIRCLES) {
+    circles.shift();
+  }
+}
+
+let lastTime = performance.now();
+
+function loop(now: number) {
+  requestAnimationFrame(loop);
+  const rawDt = (now - lastTime) / 1000;
+  lastTime = now;
+  const dt = Math.min(rawDt, 0.05);
+
+  if (!paused) {
+    for (let i = circles.length - 1; i >= 0; i--) {
+      const c = circles[i];
+      const arrived = c.update(dt);
+      if (arrived) {
+        const oldOrigin = { ...c.origin };
+        const newTarget = randomPoint(c.target, 500, 900);
+        c.setSegment(c.target, newTarget);
+        spawnChild(oldOrigin);
+      }
+    }
+  }
+
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, width, height);
+
+  for (const c of circles) {
+    const speed = mag(c.vel);
+    const lightness = 30 + Math.min(speed / 8, 50);
+    const radius = 4 + Math.min(speed / 40, 8);
+
+    ctx.beginPath();
+    ctx.arc(c.pos.x, c.pos.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = `hsl(${c.hue} 80% ${lightness}%)`;
+    ctx.fill();
+  }
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    paused = !paused;
+  }
+});
+
+init();
+requestAnimationFrame(loop);
+How to run
+bash
+npm install && npx vite
+Design choices
+Acceleration: Fixed at 450 px/s². Velocity resets to 0 at the start of every segment so each leg truly “starts slow.”
+Arrival detection: If the distance remaining in a frame is smaller than the step that frame would cover, the circle snaps to its target to avoid overshoot.
+Spawn cap: Hard limit of 150 circles keeps the simulation performant as the branching process grows.
+Color: Each circle gets a random hue; lightness maps from 30 % (slow) up to 80 % (fast). Radius also grows slightly with speed (4–12 px).
+Viewport bounds: New targets retry up to 20 random angles to land inside a 50 px padded viewport; if that fails, the point is clamped to remain on-screen.
+Pause: Spacebar toggles the animation loop; preventDefault stops the page from scrolling.
+token count not available
+High demand. Switched to K2.6 Instant for speed

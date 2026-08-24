@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Accelerating Circles Simulation</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        user-select: none;
+      }
+      body, html {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: #0b0d13;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+      #overlay {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        color: rgba(255, 255, 255, 0.7);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 13px;
+        pointer-events: none;
+        display: flex;
+        gap: 16px;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 8px 14px;
+        border-radius: 8px;
+        backdrop-filter: blur(6px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .paused-badge {
+        color: #ffb703;
+        font-weight: 600;
+        display: none;
+      }
+      .is-paused .paused-badge {
+        display: inline;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="simCanvas"></canvas>
+    <div id="overlay">
+      <span><strong>[Space]</strong> Pause / Resume</span>
+      <span id="activeCount">Circles: 1</span>
+      <span class="paused-badge" id="pausedIndicator">PAUSED</span>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

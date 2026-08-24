@@ -1,0 +1,6 @@
+circle-acceleration-sim/
+├── index.html
+├── package.json
+├── tsconfig.json
+└── src/
+    └── main.ts
